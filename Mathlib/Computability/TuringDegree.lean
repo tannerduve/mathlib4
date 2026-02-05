@@ -240,7 +240,7 @@ theorem RecursiveIn_cond_const {O : Set (ℕ →. ℕ)} {c : ℕ → Bool} {f : 
 
 def eq01 : ℕ →. ℕ := fun p => Part.some (if (Nat.unpair p).1 = (Nat.unpair p).2 then 0 else 1)
 
-theorem eq01_natPartrec : Nat.Partrec eq01 := by
+lemma eq01_natPartrec : Nat.Partrec eq01 := by
   have hcomp :
       Computable (fun p : ℕ => if (Nat.unpair p).1 = (Nat.unpair p).2 then (0 : ℕ) else 1) := by
     have hEq : Computable (fun q : ℕ × ℕ => decide (q.1 = q.2)) := by
@@ -268,10 +268,10 @@ theorem eq01_natPartrec : Nat.Partrec eq01 := by
     by_cases h : (Nat.unpair p).1 = (Nat.unpair p).2 <;> simp [eq01, h]
   exact (Partrec.nat_iff).1 hpart
 
-theorem eq01_recursiveIn (O : Set (ℕ →. ℕ)) : RecursiveIn O eq01 := by
+lemma eq01_recursiveIn (O : Set (ℕ →. ℕ)) : RecursiveIn O eq01 := by
   exact Nat.Partrec.recursiveIn (O := O) eq01_natPartrec
 
-theorem eq01_rfind_none :
+lemma eq01_rfind_none :
     Nat.rfind
         (fun k =>
           (fun m : ℕ => m = 0) <$>
@@ -282,7 +282,7 @@ theorem eq01_rfind_none :
       ((Nat.pair <$> (Part.none : Part ℕ) <*> Part.some k) >>= eq01)) ?_
   simp [Seq.seq]
 
-theorem eq01_rfind_some (n : ℕ) :
+lemma eq01_rfind_some (n : ℕ) :
     Nat.rfind
         (fun k =>
           (fun m : ℕ => m = 0) <$>
@@ -299,9 +299,158 @@ theorem eq01_rfind_some (n : ℕ) :
     have hne : n ≠ m := Nat.ne_of_gt hm
     simp [eq01, Nat.unpair_pair, Seq.seq, hne]
 
-theorem eq01_rfind (v : Part ℕ) :
+lemma eq01_rfind (v : Part ℕ) :
     Nat.rfind (fun k => (fun m : ℕ => m = 0) <$>
     ((Nat.pair <$> v <*> Part.some k) >>= eq01)) = v := by
   refine Part.induction_on v ?_ ?_
   · simpa using eq01_rfind_none
   · intro n; simpa using eq01_rfind_some (n := n)
+
+lemma RecursiveIn_cond_core_rfind {O : Set (ℕ →. ℕ)} {c : ℕ → Bool} {f g : ℕ →. ℕ}
+    (hc : Computable c) (hf : RecursiveIn O f) (hg : RecursiveIn O g) :
+    ∃ cmp : ℕ →. ℕ,
+      RecursiveIn O cmp ∧
+        (fun n => Nat.rfind (fun k => (fun m => m = 0) <$> cmp (Nat.pair n k))) =
+          (fun n => cond (c n) (f n) (g n)) := by
+  let eqF : ℕ →. ℕ := fun p =>
+    (Nat.pair <$>
+        ((fun n : ℕ => (Nat.unpair n).1) p >>= f) <*>
+        (fun n : ℕ => (Nat.unpair n).2) p) >>= eq01
+  let eqG : ℕ →. ℕ := fun p =>
+    (Nat.pair <$>
+        ((fun n : ℕ => (Nat.unpair n).1) p >>= g) <*>
+        (fun n : ℕ => (Nat.unpair n).2) p) >>= eq01
+  let c1 : ℕ → Bool := fun p => c (Nat.unpair p).1
+  let c2 : ℕ → Bool := fun p => !c (Nat.unpair p).1
+  have hc1 : Computable c1 := by
+    have hleft : Computable (fun p : ℕ => (Nat.unpair p).1) :=
+    (Computable.fst.comp Computable.unpair)
+    simpa [c1] using hc.comp hleft
+  have hc2 : Computable c2 := by
+    have hnot : Computable not := Primrec.not.to_comp
+    simpa [c2] using hnot.comp hc1
+  have heqF : RecursiveIn O eqF := by
+    have hf_left : RecursiveIn O (fun p => (fun n : ℕ => (Nat.unpair n).1) p >>= f) :=
+      RecursiveIn.comp hf (RecursiveIn.left)
+    have hright : RecursiveIn O (fun p => (Nat.unpair p).2) := RecursiveIn.right
+    have hpair : RecursiveIn O (fun p =>
+        Nat.pair <$> ((fun n : ℕ => (Nat.unpair n).1) p >>= f) <*> (fun p => (Nat.unpair p).2) p) :=
+      RecursiveIn.pair hf_left hright
+    have : RecursiveIn O (fun p =>
+        (Nat.pair <$> ((fun n : ℕ => (Nat.unpair n).1) p >>= f) <*>
+        (fun p => (Nat.unpair p).2) p) >>= eq01) :=
+      RecursiveIn.comp (eq01_recursiveIn O) hpair
+    simpa [eqF] using this
+  have heqG : RecursiveIn O eqG := by
+    have hg_left : RecursiveIn O (fun p => (fun n : ℕ => (Nat.unpair n).1) p >>= g) :=
+      RecursiveIn.comp hg (RecursiveIn.left)
+    have hright : RecursiveIn O (fun p => (Nat.unpair p).2) := RecursiveIn.right
+    have hpair : RecursiveIn O (fun p =>
+        Nat.pair <$> ((fun n : ℕ => (Nat.unpair n).1) p >>= g) <*> (fun p => (Nat.unpair p).2) p) :=
+      RecursiveIn.pair hg_left hright
+    have : RecursiveIn O (fun p =>
+        (Nat.pair <$> ((fun n : ℕ => (Nat.unpair n).1) p >>= g) <*> (fun p => (Nat.unpair p).2) p)
+        >>= eq01) :=
+      RecursiveIn.comp (eq01_recursiveIn O) hpair
+    simpa [eqG] using this
+  let t1 : ℕ →. ℕ := fun p => bif c1 p then eqF p else Part.some 1
+  let t2 : ℕ →. ℕ := fun p => bif c2 p then eqG p else Part.some 1
+  have ht1 : RecursiveIn O t1 := by
+    simpa [t1] using (RecursiveIn_cond_const (O := O) (c := c1) (f := eqF) hc1 heqF 1)
+  have ht2 : RecursiveIn O t2 := by
+    simpa [t2] using (RecursiveIn_cond_const (O := O) (c := c2) (f := eqG) hc2 heqG 1)
+  let mulPair : ℕ →. ℕ := (Nat.unpaired (fun a b : ℕ => a * b) : ℕ → ℕ)
+  have hmul : RecursiveIn O mulPair := by
+    have hpart : Nat.Partrec (mulPair : ℕ →. ℕ) := by
+      simpa [mulPair] using (Nat.Partrec.of_primrec (Nat.Primrec.mul))
+    exact Nat.Partrec.recursiveIn (O := O) hpart
+  let cmp : ℕ →. ℕ := fun p => (Nat.pair <$> t1 p <*> t2 p) >>= mulPair
+  have hcmp : RecursiveIn O cmp := by
+    have hpair : RecursiveIn O (fun p => Nat.pair <$> t1 p <*> t2 p) :=
+      RecursiveIn.pair ht1 ht2
+    have : RecursiveIn O (fun p => (Nat.pair <$> t1 p <*> t2 p) >>= mulPair) :=
+      RecursiveIn.comp hmul hpair
+    simpa [cmp] using this
+  refine ⟨cmp, hcmp, ?_⟩
+  funext n
+  let φ : ℕ → Bool := fun m => decide (m = 0)
+  cases hn : c n with
+  | true =>
+      simp only [Part.map_eq_map, cond_true]
+      have hpred :
+          (fun k => Part.map φ (cmp (Nat.pair n k))) =
+            (fun k => Part.map φ (((Nat.pair <$> f n <*> Part.some k) >>= eq01))) := by
+        funext k
+        have hcmpk : cmp (Nat.pair n k) = ((Nat.pair <$> f n <*> Part.some k) >>= eq01) := by
+          simp [cmp, t1, t2, c1, c2, eqF, eqG, mulPair, hn, Nat.unpair_pair, Nat.unpaired,
+            Seq.seq, Part.bind_assoc, Part.bind_some, Part.bind_some_right]
+        simp [hcmpk]
+      rw [hpred]
+      exact eq01_rfind (v := f n)
+  | false =>
+      simp only [Part.map_eq_map, cond_false]
+      have hpred :
+          (fun k => Part.map φ (cmp (Nat.pair n k))) =
+            (fun k => Part.map φ (((Nat.pair <$> g n <*> Part.some k) >>= eq01))) := by
+        funext k
+        have hcmpk : cmp (Nat.pair n k) = ((Nat.pair <$> g n <*> Part.some k) >>= eq01) := by
+          simp [cmp, t1, t2, c1, c2, eqF, eqG, mulPair, hn, Nat.unpair_pair, Nat.unpaired,
+            Seq.seq, Part.bind_assoc, Part.bind_some, Part.bind_some_right]
+        simp [hcmpk]
+      rw [hpred]
+      exact eq01_rfind (v := g n)
+
+lemma RecursiveIn_cond {O : Set (ℕ →. ℕ)} {c : ℕ → Bool} {f g : ℕ →. ℕ}
+    (hc : Computable c) (hf : RecursiveIn O f) (hg : RecursiveIn O g) :
+    RecursiveIn O (fun n => cond (c n) (f n) (g n)) := by
+  rcases RecursiveIn_cond_core_rfind (O := O) (c := c) (f := f) (g := g)
+    hc hf hg with ⟨cmp, hcmp, hEq⟩
+  have hr : RecursiveIn O (fun n => Nat.rfind (fun k => (fun m => m = 0) <$>
+  cmp (Nat.pair n k))) := by
+    exact RecursiveIn.rfind hcmp
+  refine RecursiveIn.of_eq hr ?_
+  intro n
+  simpa using congrArg (fun h => h n) hEq
+
+lemma turingJoin_recursiveIn_pair (f g : ℕ →. ℕ) : RecursiveIn ({f, g} : Set (ℕ →. ℕ)) (f ⊕ g) := by
+  let O : Set (ℕ →. ℕ) := ({f, g} : Set (ℕ →. ℕ))
+  let payload : ℕ →. ℕ := fun n => (Nat.div2 n : ℕ)
+  let dbl : ℕ →. ℕ := fun n => (2 * n : ℕ)
+  let dbl1 : ℕ →. ℕ := fun n => (2 * n + 1 : ℕ)
+  have hpayload : RecursiveIn O payload := by
+    refine RecursiveIn.of_primrec (O := O) ?_
+    exact (Primrec.nat_iff.1 (by simpa using (Primrec.nat_div2 : Primrec Nat.div2)))
+  have hdbl : RecursiveIn O dbl := by
+    refine RecursiveIn.of_primrec (O := O) ?_
+    have hprim : Primrec (fun n : ℕ => 2 * n) :=
+      Primrec.nat_mul.comp (Primrec.const 2) Primrec.id
+    exact (Primrec.nat_iff.1 hprim)
+  have hdbl1 : RecursiveIn O dbl1 := by
+    refine RecursiveIn.of_primrec (O := O) ?_
+    have hprim : Primrec (fun n : ℕ => 2 * n + 1) :=
+      Primrec.nat_add.comp
+        (Primrec.nat_mul.comp (Primrec.const 2) Primrec.id)
+        (Primrec.const 1)
+    exact (Primrec.nat_iff.1 hprim)
+  have hfO : RecursiveIn O f := RecursiveIn.oracle f (by simp [O])
+  have hgO : RecursiveIn O g := RecursiveIn.oracle g (by simp [O])
+  let evenBranch : ℕ →. ℕ := fun n => (payload n >>= f) >>= dbl
+  let oddBranch : ℕ →. ℕ := fun n => (payload n >>= g) >>= dbl1
+  have heven : RecursiveIn O evenBranch := by
+    have h1 : RecursiveIn O (fun n => payload n >>= f) := RecursiveIn.comp hfO hpayload
+    have h2 : RecursiveIn O (fun n => (payload n >>= f) >>= dbl) := RecursiveIn.comp hdbl h1
+    simpa [evenBranch] using h2
+  have hodd : RecursiveIn O oddBranch := by
+    have h1 : RecursiveIn O (fun n => payload n >>= g) := RecursiveIn.comp hgO hpayload
+    have h2 : RecursiveIn O (fun n => (payload n >>= g) >>= dbl1) := RecursiveIn.comp hdbl1 h1
+    simpa [oddBranch] using h2
+  have hc : Computable Nat.bodd := by
+    simpa using (Computable.nat_bodd : Computable Nat.bodd)
+  have hcond :
+      RecursiveIn O (fun n => cond (Nat.bodd n) (oddBranch n) (evenBranch n)) :=
+    RecursiveIn_cond (O := O) (c := Nat.bodd) (f := oddBranch) (g := evenBranch) hc hodd heven
+  refine (RecursiveIn.of_eq (O := O) hcond ?_)
+  intro n
+  by_cases hbn : Nat.bodd n
+  · simp [turingJoin, payload, dbl, dbl1, evenBranch, oddBranch, hbn, Part.bind_some_eq_map]
+  · simp [turingJoin, payload, dbl, dbl1, evenBranch, oddBranch, hbn, Part.bind_some_eq_map]
