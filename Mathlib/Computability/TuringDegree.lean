@@ -455,7 +455,7 @@ lemma turingJoin_recursiveIn_pair (f g : ℕ →. ℕ) : RecursiveIn ({f, g} : S
   · simp [turingJoin, payload, dbl, dbl1, evenBranch, oddBranch, hbn, Part.bind_some_eq_map]
   · simp [turingJoin, payload, dbl, dbl1, evenBranch, oddBranch, hbn, Part.bind_some_eq_map]
 
-theorem join_le (f g h : ℕ →. ℕ) (hf : TuringReducible f h) (hg : TuringReducible g h) :
+lemma join_le (f g h : ℕ →. ℕ) (hf : TuringReducible f h) (hg : TuringReducible g h) :
 TuringReducible (f ⊕ g) h := by
   have hj : RecursiveIn ({f, g} : Set (ℕ →. ℕ)) (f ⊕ g) := turingJoin_recursiveIn_pair f g
   have hO : ∀ k, k ∈ ({f, g} : Set (ℕ →. ℕ)) → RecursiveIn ({h} : Set (ℕ →. ℕ)) k := by
@@ -469,3 +469,60 @@ TuringReducible (f ⊕ g) h := by
         simpa [hkg] using hg
   exact RecursiveIn_subst (O := ({f, g} : Set (ℕ →. ℕ))) (O' := ({h} : Set (ℕ →. ℕ)))
     (f := (f ⊕ g)) hj hO
+
+namespace TuringDegree
+
+/-- The Turing join respects Turing reducibility: if `f ≤ᵀ f'` and `g ≤ᵀ g'`,
+then `f ⊕ g ≤ᵀ f' ⊕ g'`. -/
+theorem join_mono {f f' g g' : ℕ →. ℕ} (hf : f ≤ᵀ f') (hg : g ≤ᵀ g') :
+    (f ⊕ g) ≤ᵀ (f' ⊕ g') := by
+  have hf' : f ≤ᵀ (f' ⊕ g') := hf.trans (left_le_join f' g')
+  have hg' : g ≤ᵀ (f' ⊕ g') := hg.trans (right_le_join f' g')
+  exact join_le f g (f' ⊕ g') hf' hg'
+
+/-- The Turing join respects Turing equivalence. -/
+theorem join_congr {f f' g g' : ℕ →. ℕ} (hf : f ≡ᵀ f') (hg : g ≡ᵀ g') :
+    (f ⊕ g) ≡ᵀ (f' ⊕ g') :=
+  ⟨join_mono hf.1 hg.1, join_mono hf.2 hg.2⟩
+
+/-- The supremum operation on Turing degrees, induced by the Turing join. -/
+def sup : TuringDegree → TuringDegree → TuringDegree :=
+  Quotient.lift₂
+    (fun f g => toAntisymmetrization TuringReducible (f ⊕ g))
+    (fun _ _ _ _ hf hg => Quotient.sound (join_congr hf hg))
+
+theorem sup_mk (f g : ℕ →. ℕ) :
+    TuringDegree.sup (toAntisymmetrization TuringReducible f)
+    (toAntisymmetrization TuringReducible g) =
+    toAntisymmetrization TuringReducible (f ⊕ g) := rfl
+
+theorem le_sup_left (a b : TuringDegree) : a ≤ TuringDegree.sup a b := by
+  induction a using Quotient.inductionOn'
+  induction b using Quotient.inductionOn'
+  exact left_le_join _ _
+
+theorem le_sup_right (a b : TuringDegree) : b ≤ TuringDegree.sup a b := by
+  induction a using Quotient.inductionOn'
+  induction b using Quotient.inductionOn'
+  exact right_le_join _ _
+
+theorem sup_le {a b c : TuringDegree} (ha : a ≤ c) (hb : b ≤ c) :
+    TuringDegree.sup a b ≤ c := by
+  induction a using Quotient.inductionOn'
+  induction b using Quotient.inductionOn'
+  induction c using Quotient.inductionOn'
+  exact join_le _ _ _ ha hb
+
+instance instSemilatticeSup : SemilatticeSup TuringDegree where
+  sup := sup
+  le_sup_left := le_sup_left
+  le_sup_right := le_sup_right
+  sup_le _ _ _ := sup_le
+
+/-- The sup on Turing degrees agrees with the Turing join on representatives. -/
+@[simp]
+lemma sup_def (f g : ℕ →. ℕ) :
+    (toAntisymmetrization TuringReducible f) ⊔ (toAntisymmetrization TuringReducible g) =
+    toAntisymmetrization TuringReducible (f ⊕ g) := rfl
+
+end TuringDegree
