@@ -454,3 +454,18 @@ lemma turingJoin_recursiveIn_pair (f g : ℕ →. ℕ) : RecursiveIn ({f, g} : S
   by_cases hbn : Nat.bodd n
   · simp [turingJoin, payload, dbl, dbl1, evenBranch, oddBranch, hbn, Part.bind_some_eq_map]
   · simp [turingJoin, payload, dbl, dbl1, evenBranch, oddBranch, hbn, Part.bind_some_eq_map]
+
+theorem join_le (f g h : ℕ →. ℕ) (hf : TuringReducible f h) (hg : TuringReducible g h) :
+TuringReducible (f ⊕ g) h := by
+  have hj : RecursiveIn ({f, g} : Set (ℕ →. ℕ)) (f ⊕ g) := turingJoin_recursiveIn_pair f g
+  have hO : ∀ k, k ∈ ({f, g} : Set (ℕ →. ℕ)) → RecursiveIn ({h} : Set (ℕ →. ℕ)) k := by
+    intro k hk
+    have hk' : k = f ∨ k = g := by
+      simpa [Set.mem_insert_iff, Set.mem_singleton_iff] using hk
+    cases hk' with
+    | inl hkf =>
+        simpa [hkf] using hf
+    | inr hkg =>
+        simpa [hkg] using hg
+  exact RecursiveIn_subst (O := ({f, g} : Set (ℕ →. ℕ))) (O' := ({h} : Set (ℕ →. ℕ)))
+    (f := (f ⊕ g)) hj hO
