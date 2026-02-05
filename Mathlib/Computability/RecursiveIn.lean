@@ -7,30 +7,31 @@ import Mathlib.Computability.Partrec
 import Mathlib.Order.Antisymmetrization
 
 /-!
-# Oracle Computability and Turing Degrees
+# Oracle Computability
 
-This file defines a model of oracle computability using partial recursive functions.
-This file introduces Turing reducibility and equivalence, prove that Turing equivalence is an
-equivalence relation, and define Turing degrees as the quotient under this relation.
+This file defines oracle computability using partial recursive functions with access to oracles.
 
 ## Main Definitions
 
-- `RecursiveIn O f`:
-  An inductive definition representing that a partial function `f` is partial recursive given access
-  to a set of oracles O.
-- `TuringReducible`: A relation defining Turing reducibility between partial functions.
-- `TuringEquivalent`: An equivalence relation defining Turing equivalence between partial functions.
-- `TuringDegree`: The type of Turing degrees, defined as the quotient of partial functions under
-  `TuringEquivalent`.
+* `RecursiveIn O f`: A partial function `f : ℕ →. ℕ` is partial recursive given access to oracles
+  in the set `O`.
+* `Nat.PrimrecIn O f`: A total function `f : ℕ → ℕ` is primitive recursive relative to oracles
+  in the set `O`.
+* `RecursiveIn' O f`: Lifts `RecursiveIn` to partial functions between `Primcodable` types.
+* `ComputableIn O f`: A total function `f : α → σ` is computable given access to oracles in `O`.
 
-## Notation
+## Main Results
 
-- `f ≤ᵀ g` : `f` is Turing reducible to `g`.
-- `f ≡ᵀ g` : `f` is Turing equivalent to `g`.
+* `Nat.Partrec.recursiveIn`: Every partial recursive function is recursive in any oracle set.
+* `partrec_iff_forall_recursiveIn`: A function is partial recursive iff it is recursive in every
+  singleton oracle set.
+* `recursiveIn_empty_iff_partrec`: Being recursive in the empty set is equivalent to being
+  partial recursive.
+* `recursiveIn_mono`: Monotonicity of `RecursiveIn` with respect to oracle sets.
 
 ## Implementation Notes
 
-The type of partial functions recursive in a set of oracle `O` is the smallest type containing
+The type of partial functions recursive in a set of oracles `O` is the smallest type containing
 the constant zero, the successor, left and right projections, each oracle `g ∈ O`,
 and is closed under pairing, composition, primitive recursion, and μ-recursion.
 
@@ -42,7 +43,7 @@ and is closed under pairing, composition, primitive recursion, and μ-recursion.
 
 ## Tags
 
-Computability, Oracle, Turing Degrees, Reducibility, Equivalence Relation
+computability, oracle, relative computability
 -/
 
 open Encodable Primrec Nat.Partrec Part
