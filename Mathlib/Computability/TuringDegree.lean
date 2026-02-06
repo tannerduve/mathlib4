@@ -4,10 +4,12 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Tanner Duve, Elan Roth
 -/
 
-import Mathlib.Tactic.Cases
-import Mathlib.Tactic.NormNum
-import Aesop
-import Mathlib.Computability.RecursiveIn
+module
+
+public import Mathlib.Tactic.Cases
+public import Mathlib.Tactic.NormNum
+public import Aesop
+public import Mathlib.Computability.RecursiveIn
 
 /-!
 # Turing Reducibility and Turing Degrees
@@ -43,6 +45,8 @@ Turing reducibility. This gives a concrete representation of degrees as equivale
 
 Computability, Turing Degrees, Reducibility, Equivalence Relation
 -/
+
+@[expose] public section
 
 open Std
 
@@ -116,6 +120,7 @@ Turing degrees are the equivalence classes of partial functions under Turing equ
 abbrev TuringDegree :=
   Antisymmetrization _ TuringReducible
 
+set_option backward.privateInPublic true in
 private instance : Preorder (ℕ →. ℕ) where
   le := TuringReducible
   le_refl := .refl
