@@ -172,7 +172,7 @@ lemma right_le_join (f g : ℕ →. ℕ) : g ≤ᵀ (f ⊕ g) := by
       (Primrec.nat_add.comp (Primrec.nat_mul.comp (Primrec.const 2) Primrec.id) (Primrec.const 1))
   have hdiv2 : RecursiveIn {j} (fun n : ℕ => (Nat.div2 n : ℕ)) := by
     refine RecursiveIn.of_primrec (Primrec.nat_iff.1 ?_)
-    simpa using (Primrec.nat_div2 : Primrec Nat.div2)
+    simpa using Primrec.nat_div2
   have hquery : RecursiveIn {j} (fun n => j (2 * n + 1)) := by
     refine RecursiveIn.of_eq (RecursiveIn.comp hj hdouble1) ?_
     intro n
