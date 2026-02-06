@@ -309,11 +309,8 @@ lemma sup_le {a b c : TuringDegree} (ha : a ≤ c) (hb : b ≤ c) :
   induction c using Quotient.inductionOn'
   exact join_le _ _ _ ha hb
 
-instance instSemilatticeSup : SemilatticeSup TuringDegree where
-  sup := sup
-  le_sup_left := le_sup_left
-  le_sup_right := le_sup_right
-  sup_le _ _ _ := sup_le
+instance instSemilatticeSup : SemilatticeSup TuringDegree :=
+  { sup := sup, le_sup_left, le_sup_right, sup_le := fun _ _ _ => sup_le }
 
 /-- The sup on Turing degrees agrees with the Turing join on representatives. -/
 @[simp]
