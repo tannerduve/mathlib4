@@ -27,7 +27,7 @@ This file defines oracle computability using partial recursive functions with ac
   singleton oracle set.
 * `recursiveIn_empty_iff_partrec`: Being recursive in the empty set is equivalent to being
   partial recursive.
-* `recursiveIn_mono`: Monotonicity of `RecursiveIn` with respect to oracle sets.
+* `RecursiveIn.mono`: Monotonicity of `RecursiveIn` with respect to oracle sets.
 
 ## Implementation Notes
 
@@ -91,12 +91,20 @@ protected inductive PrimrecIn (O : Set (ℕ → ℕ)) : (ℕ → ℕ) → Prop
           Nat.PrimrecIn O (unpaired fun z n => n.rec (f z) fun y IH => g <| pair z <| pair y IH)
 end Nat
 
+/--
+Encode a partial function between `Primcodable` types as a partial function `ℕ →. ℕ`.
+-/
 def liftPrim {α σ} [Primcodable α] [Primcodable σ] (f : α →. σ) : ℕ →. ℕ :=
   fun n => Part.bind (decode (α := α) n) fun a => (f a).map encode
 
+/--
+Encode a total function between `Primcodable` types as a total function `ℕ → ℕ`.
+If decoding fails, the output defaults to `0`.
+-/
 def liftPrimrec {α σ} [Primcodable α] [Primcodable σ] (f : α → σ) : ℕ → ℕ :=
   fun n => (decode (α := α) n).map (fun a => encode (f a)) |>.getD 0
 
+/-- Lift `RecursiveIn` from `ℕ →. ℕ` to partial functions between `Primcodable` types. -/
 def RecursiveIn' {α σ} [Primcodable α] [Primcodable σ] (O : Set (ℕ →. ℕ)) (f : α →. σ) : Prop :=
   RecursiveIn O (liftPrim f)
 
@@ -118,14 +126,17 @@ def ComputableIn₂ {α β σ} [Primcodable α] [Primcodable β] [Primcodable σ
     (O : Set (ℕ →. ℕ)) (f : α → β → σ) : Prop :=
   ComputableIn O (fun p : α × β => f p.1 p.2)
 
-theorem RecursiveIn.of_eq {f g : ℕ →. ℕ} {O : Set (ℕ →. ℕ)} (hf : RecursiveIn O f)
- (H : ∀ n, f n = g n) :
+namespace RecursiveIn
+
+theorem of_eq {f g : ℕ →. ℕ} {O : Set (ℕ →. ℕ)} (hf : RecursiveIn O f) (H : ∀ n, f n = g n) :
     RecursiveIn O g :=
   (funext H : f = g) ▸ hf
 
-theorem RecursiveIn.of_eq_tot {f : ℕ →. ℕ} {g : ℕ → ℕ} {O : Set (ℕ →. ℕ)} (hf : RecursiveIn O f)
+theorem of_eq_tot {f : ℕ →. ℕ} {g : ℕ → ℕ} {O : Set (ℕ →. ℕ)} (hf : RecursiveIn O f)
     (H : ∀ n, g n ∈ f n) : RecursiveIn O g :=
-  hf.of_eq fun n => eq_some_iff.2 (H n)
+  of_eq hf fun n => eq_some_iff.2 (H n)
+
+end RecursiveIn
 /--
 If a function is partial recursive, then it is recursive in every partial function.
 -/
@@ -145,8 +156,20 @@ theorem Computable.computableIn {f : α → β} [Primcodable α]
 (hf : Computable f) : ComputableIn O f :=
   Nat.Partrec.recursiveIn (by simpa [Computable] using hf)
 
-theorem RecursiveIn.of_primrec {f : ℕ → ℕ} (hf : Nat.Primrec f) :
-RecursiveIn O (fun n => f n) := Nat.Partrec.recursiveIn (Nat.Partrec.of_primrec hf)
+namespace RecursiveIn
+
+theorem of_primrec {O : Set (ℕ →. ℕ)} {f : ℕ → ℕ} (hf : Nat.Primrec f) :
+    RecursiveIn O (fun n => f n) :=
+  Nat.Partrec.recursiveIn (Nat.Partrec.of_primrec hf)
+
+protected theorem some {O : Set (ℕ →. ℕ)} : RecursiveIn O some :=
+  of_primrec (O := O) Nat.Primrec.id
+
+theorem none {O : Set (ℕ →. ℕ)} : RecursiveIn O (fun _ => none) :=
+  (of_primrec (O := O) (Nat.Primrec.const 1)).rfind.of_eq fun _ =>
+    eq_none_iff.2 fun _ ⟨h, _⟩ => by simp at h
+
+end RecursiveIn
 
 theorem Primrec.to_computableIn {α σ} [Primcodable α] [Primcodable σ]
     {f : α → σ} (hf : Primrec f) (O : Set (ℕ →. ℕ)) :
@@ -164,13 +187,6 @@ protected theorem ComputableIn.recursiveIn' {α σ} [Primcodable α] [Primcodabl
 protected theorem ComputableIn₂.recursiveIn₂ {α β σ} [Primcodable α] [Primcodable β] [Primcodable σ]
     {f : α → β → σ} {O} (hf : ComputableIn₂ O f) :
     RecursiveIn₂ O fun a => (f a : β →. σ) := hf
-
-protected theorem RecursiveIn.some : RecursiveIn O some :=
-  RecursiveIn.of_primrec Nat.Primrec.id
-
-theorem RecursiveIn.none : RecursiveIn O (fun _ => none) :=
-  (RecursiveIn.of_primrec (Nat.Primrec.const 1)).rfind.of_eq fun _ =>
-    eq_none_iff.2 fun _ ⟨h, _⟩ => by simp at h
 
 variable [Primcodable α] [Primcodable β] [Primcodable γ] [Primcodable σ]
 
@@ -254,7 +270,10 @@ lemma recursiveIn_empty_iff_partrec : RecursiveIn {} f ↔ Nat.Partrec f := by
   · intro hf
     exact Nat.Partrec.recursiveIn (O := ({} : Set (ℕ →. ℕ))) hf
 
-theorem recursiveIn_mono {O₁ O₂ : Set (ℕ →. ℕ)} (hsub : O₁ ⊆ O₂) {g : ℕ →. ℕ} :
+namespace RecursiveIn
+
+/-- Monotonicity of `RecursiveIn` with respect to oracle sets. -/
+theorem mono {O₁ O₂ : Set (ℕ →. ℕ)} (hsub : O₁ ⊆ O₂) {g : ℕ →. ℕ} :
       RecursiveIn O₁ g → RecursiveIn O₂ g := by
   intro hg
   induction hg with
@@ -271,7 +290,8 @@ theorem recursiveIn_mono {O₁ O₂ : Set (ℕ →. ℕ)} (hsub : O₁ ⊆ O₂)
   | rfind _ ih =>
       exact RecursiveIn.rfind ih
 
-theorem RecursiveIn_subst {O O' : Set (ℕ →. ℕ)} {f : ℕ →. ℕ} (hf : RecursiveIn O f)
+/-- Substitute one oracle set for another, given realizers for each oracle. -/
+theorem subst {O O' : Set (ℕ →. ℕ)} {f : ℕ →. ℕ} (hf : RecursiveIn O f)
     (hO : ∀ g, g ∈ O → RecursiveIn O' g) : RecursiveIn O' f := by
   induction hf with
   | zero | succ | left | right =>
@@ -281,3 +301,141 @@ theorem RecursiveIn_subst {O O' : Set (ℕ →. ℕ)} {f : ℕ →. ℕ} (hf : R
   | comp _ _ ihf ihg => exact .comp ihf ihg
   | prec _ _ ihf ihg => exact .prec ihf ihg
   | rfind _ ihf => exact .rfind ihf
+
+/--
+`RecursiveIn O` is closed under conditionals with a computable guard and a constant fallback.
+
+If `c n = true` we return `f n`, otherwise we return the
+constant value `k`.
+-/
+theorem cond_const {c : ℕ → Bool} {f : ℕ →. ℕ} (hc : Computable c)
+    (hf : RecursiveIn O f) (k : ℕ) :
+    RecursiveIn O (fun n => bif (c n) then f n else (Part.some k)) := by
+  have hid : RecursiveIn O (fun n : ℕ => n) := by
+    simpa using (RecursiveIn.of_primrec (O := O) Nat.Primrec.id)
+  have hcode : RecursiveIn O (fun n : ℕ => encode (c n)) := by
+    have hcomp : Computable (fun n : ℕ => encode (c n)) := (Computable.encode.comp hc)
+    exact Nat.Partrec.recursiveIn (O := O) ((Partrec.nat_iff).1 hcomp.partrec)
+  let pairFn : ℕ →. ℕ := fun n =>
+    Nat.pair <$> (show Part ℕ from n) <*> (show Part ℕ from encode (c n))
+  have hpair : RecursiveIn O pairFn := by
+    simpa [pairFn] using (RecursiveIn.pair hid hcode)
+  let base : ℕ →. ℕ := fun _ : ℕ => (k : ℕ)
+  have hbase : RecursiveIn O base := by
+    simpa [base] using (RecursiveIn.of_primrec (O := O) (Nat.Primrec.const k))
+  let step : ℕ →. ℕ := fun p : ℕ => (Nat.unpair p).1 >>= f
+  have hstep : RecursiveIn O step := by
+    simpa [step] using (RecursiveIn.comp hf RecursiveIn.left)
+  let precFn : ℕ →. ℕ :=
+    fun p : ℕ =>
+      let (a, n) := Nat.unpair p
+      n.rec (base a) (fun y IH => do
+        let i ← IH
+        step (Nat.pair a (Nat.pair y i)))
+  have hprec : RecursiveIn O precFn := by
+    simpa [precFn] using (RecursiveIn.prec hbase hstep)
+  let mainFn : ℕ →. ℕ := fun n => pairFn n >>= precFn
+  have hmain : RecursiveIn O mainFn := by
+    simpa [mainFn] using (RecursiveIn.comp hprec hpair)
+  have hEq : mainFn = (fun n => bif (c n) then f n else Part.some k) := by
+    funext n
+    cases h : c n <;>
+      simp [mainFn, pairFn, precFn, base, step, h, Seq.seq, Nat.unpair_pair]
+  simpa [hEq] using hmain
+
+/--
+Construct `cmp` so that a single `Nat.rfind` over `cmp` computes `cond (c n) (f n) (g n)`.
+-/
+theorem cond_core_rfind {c : ℕ → Bool} {f g : ℕ →. ℕ}
+    (hc : Computable c) (hf : RecursiveIn O f) (hg : RecursiveIn O g) :
+    ∃ cmp : ℕ →. ℕ,
+      RecursiveIn O cmp ∧
+        (fun n => Nat.rfind (fun k => (fun m => m = 0) <$> cmp (Nat.pair n k))) =
+          (fun n => cond (c n) (f n) (g n)) := by
+  have eq01_recursiveIn : RecursiveIn O Partrec.eq01 :=
+    Nat.Partrec.recursiveIn (O := O) Partrec.eq01_partrec
+  let eqF : ℕ →. ℕ := fun p =>
+    (Nat.pair <$>
+        ((fun n : ℕ => (Nat.unpair n).1) p >>= f) <*>
+        (fun n : ℕ => (Nat.unpair n).2) p) >>= Partrec.eq01
+  let eqG : ℕ →. ℕ := fun p =>
+    (Nat.pair <$>
+        ((fun n : ℕ => (Nat.unpair n).1) p >>= g) <*>
+        (fun n : ℕ => (Nat.unpair n).2) p) >>= Partrec.eq01
+  let c1 : ℕ → Bool := fun p => c (Nat.unpair p).1
+  let c2 : ℕ → Bool := fun p => !c (Nat.unpair p).1
+  have hc1 : Computable c1 := by
+    simpa [c1] using hc.comp (Computable.fst.comp Computable.unpair)
+  have hc2 : Computable c2 := by
+    have hnot : Computable not := Primrec.not.to_comp
+    simpa [c2] using hnot.comp hc1
+  have heqF : RecursiveIn O eqF := by
+    have : RecursiveIn O (fun p =>
+        (Nat.pair <$> ((fun n : ℕ => (Nat.unpair n).1) p >>= f) <*>
+          (fun n : ℕ => (Nat.unpair n).2) p) >>= Partrec.eq01) :=
+      RecursiveIn.comp eq01_recursiveIn
+        (RecursiveIn.pair (RecursiveIn.comp hf RecursiveIn.left) RecursiveIn.right)
+    simpa [eqF] using this
+  have heqG : RecursiveIn O eqG := by
+    have : RecursiveIn O (fun p =>
+        (Nat.pair <$> ((fun n : ℕ => (Nat.unpair n).1) p >>= g) <*>
+          (fun n : ℕ => (Nat.unpair n).2) p) >>= Partrec.eq01) :=
+      RecursiveIn.comp eq01_recursiveIn
+        (RecursiveIn.pair (RecursiveIn.comp hg RecursiveIn.left) RecursiveIn.right)
+    simpa [eqG] using this
+  let t1 : ℕ →. ℕ := fun p => bif c1 p then eqF p else Part.some 1
+  let t2 : ℕ →. ℕ := fun p => bif c2 p then eqG p else Part.some 1
+  have ht1 : RecursiveIn O t1 := by
+    simpa [t1] using (cond_const (O := O) (c := c1) (f := eqF) hc1 heqF 1)
+  have ht2 : RecursiveIn O t2 := by
+    simpa [t2] using (cond_const (O := O) (c := c2) (f := eqG) hc2 heqG 1)
+  let mulPair : ℕ →. ℕ := (Nat.unpaired (fun a b : ℕ => a * b) : ℕ → ℕ)
+  have hmul : RecursiveIn O mulPair := by
+    have hpart : Nat.Partrec (mulPair : ℕ →. ℕ) := by
+      simpa [mulPair] using (Nat.Partrec.of_primrec (Nat.Primrec.mul))
+    exact Nat.Partrec.recursiveIn (O := O) hpart
+  let cmp : ℕ →. ℕ := fun p => (Nat.pair <$> t1 p <*> t2 p) >>= mulPair
+  have hcmp : RecursiveIn O cmp := by
+    have hpair : RecursiveIn O (fun p => Nat.pair <$> t1 p <*> t2 p) :=
+      RecursiveIn.pair ht1 ht2
+    have : RecursiveIn O (fun p => (Nat.pair <$> t1 p <*> t2 p) >>= mulPair) :=
+      RecursiveIn.comp hmul hpair
+    simpa [cmp] using this
+  refine ⟨cmp, hcmp, ?_⟩
+  funext n
+  let φ : ℕ → Bool := fun m => decide (m = 0)
+  cases hn : c n with
+  | true =>
+      simp only [Part.map_eq_map, cond_true]
+      have hpred : (fun k => Part.map φ (cmp (Nat.pair n k))) =
+          (fun k => Part.map φ ((Nat.pair <$> f n <*> Part.some k) >>= Partrec.eq01)) := by
+        funext k
+        simp [cmp, t1, t2, c1, c2, eqF, eqG, mulPair, hn, Nat.unpair_pair, Nat.unpaired,
+          Seq.seq, Part.bind_assoc, Part.bind_some, Part.bind_some_right]
+      rw [hpred]
+      exact Partrec.eq01_rfind (v := f n)
+  | false =>
+      simp only [Part.map_eq_map, cond_false]
+      have hpred : (fun k => Part.map φ (cmp (Nat.pair n k))) =
+          (fun k => Part.map φ ((Nat.pair <$> g n <*> Part.some k) >>= Partrec.eq01)) := by
+        funext k
+        simp [cmp, t1, t2, c1, c2, eqF, eqG, mulPair, hn, Nat.unpair_pair, Nat.unpaired,
+          Seq.seq, Part.bind_assoc, Part.bind_some, Part.bind_some_right]
+      rw [hpred]
+      exact Partrec.eq01_rfind (v := g n)
+
+/--
+`RecursiveIn O` is closed under conditionals with a computable guard.
+-/
+theorem cond {c : ℕ → Bool} {f g : ℕ →. ℕ}
+    (hc : Computable c) (hf : RecursiveIn O f) (hg : RecursiveIn O g) :
+    RecursiveIn O (fun n => cond (c n) (f n) (g n)) := by
+  rcases cond_core_rfind (O := O) (c := c) (f := f) (g := g) hc hf hg with ⟨cmp, hcmp, hEq⟩
+  have hr : RecursiveIn O (fun n => Nat.rfind (fun k => (fun m => m = 0) <$>
+    cmp (Nat.pair n k))) := by
+    exact RecursiveIn.rfind hcmp
+  refine RecursiveIn.of_eq hr ?_
+  intro n
+  simpa using congrArg (fun h => h n) hEq
+
+end RecursiveIn
