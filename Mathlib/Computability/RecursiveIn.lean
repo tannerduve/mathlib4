@@ -220,60 +220,60 @@ theorem sumInr_in (O : Set (ℕ →. ℕ)) : ComputableIn O (@Sum.inr α β) :=
   Primrec.to_computableIn Primrec.sumInr O
 
 /--
-If a function is recursive in the constant zero function,
-then it is partial recursive.
+If every function in `O` is partial recursive,
+then a function which is RecursiveIn g is also partial recursive.
 -/
-lemma RecursiveIn.partrec_of_zero (fRecInZero : RecursiveIn {fun _ => Part.some 0} f) :
-    Nat.Partrec f := by
-  induction fRecInZero with
+theorem partrec_of_partrec_oracle (h₁ : ∀ g ∈ O, Nat.Partrec g) (h₂ : RecursiveIn O f) :
+  Nat.Partrec f := by
+  induction h₂ with
   | zero | succ | left | right => constructor
-  | oracle g hg =>
-    rw [Set.mem_singleton_iff] at hg
-    rw [hg]
-    exact Nat.Partrec.zero
+  | oracle g gIn => exact h₁ g gIn
   | pair _ _ ih₁ ih₂ => exact .pair ih₁ ih₂
   | comp _ _ ih₁ ih₂ => exact .comp ih₁ ih₂
   | prec _ _ ih₁ ih₂ => exact .prec ih₁ ih₂
   | rfind _ ih => exact .rfind ih
+
+/--
+If a function is recursive in the constant zero function,
+then it is partial recursive.
+-/
+lemma RecursiveIn.partrec_of_zero (fRecInZero : RecursiveIn {fun _ => Part.some 0} f) :
+    Nat.Partrec f :=
+  partrec_of_partrec_oracle
+    (fun _ gIn =>
+      (Set.mem_singleton_iff.mp gIn).symm ▸
+        (Nat.Partrec.zero.of_eq fun _ => rfl))
+    fRecInZero
 
 /--
 If a function is partial recursive in the constant none function,
 then it is partial recursive.
 -/
 lemma RecursiveIn.partrec_of_none (fRecInNone : RecursiveIn {fun _ => Part.none} f) :
-    Nat.Partrec f := by
-  induction fRecInNone with
-  | zero | succ | left | right => constructor
-  | oracle g hg =>
-    rw [Set.mem_singleton_iff] at hg
-    rw [hg]
-    exact Nat.Partrec.none
-  | pair _ _ ih₁ ih₂ => exact .pair ih₁ ih₂
-  | comp _ _ ih₁ ih₂ => exact .comp ih₁ ih₂
-  | prec _ _ ih₁ ih₂ => exact .prec ih₁ ih₂
-  | rfind _ ih => exact .rfind ih
+    Nat.Partrec f :=
+  partrec_of_partrec_oracle
+    (fun _ gIn =>
+      (Set.mem_singleton_iff.mp gIn).symm ▸
+        (Nat.Partrec.none.of_eq fun _ => rfl))
+    fRecInNone
 
 /--
 A partial function `f` is partial recursive if and only if it is recursive in
 every partial function `g`.
 -/
-theorem partrec_iff_forall_recursiveIn : Nat.Partrec f ↔ ∀ g, RecursiveIn {g} f:=
+theorem partrec_iff_forall_recursiveIn : Nat.Partrec f ↔ ∀ g, RecursiveIn {g} f :=
   ⟨fun hf _ ↦ hf.recursiveIn, (· _ |>.partrec_of_zero)⟩
 
 @[simp]
-lemma recursiveIn_empty_iff_partrec : RecursiveIn {} f ↔ Nat.Partrec f := by
-  constructor
-  · intro hf
-    induction hf with
-    | zero | succ | left | right =>
-        constructor
-    | oracle g hg => cases hg
-    | pair _ _ ih₁ ih₂ => exact .pair ih₁ ih₂
-    | comp _ _ ih₁ ih₂ => exact .comp ih₁ ih₂
-    | prec _ _ ih₁ ih₂ => exact .prec ih₁ ih₂
-    | rfind _ ih => exact .rfind ih
-  · intro hf
-    exact Nat.Partrec.recursiveIn (O := ({} : Set (ℕ →. ℕ))) hf
+lemma recursiveIn_empty_iff_partrec : RecursiveIn ({} : Set (ℕ →. ℕ)) f ↔ Nat.Partrec f :=
+⟨
+  fun hf =>
+    partrec_of_partrec_oracle (O := ({} : Set (ℕ →. ℕ))) (f := f)
+      (fun g hg => ((Set.mem_empty_iff_false g).mp hg).elim)
+      hf,
+  fun hf =>
+    Nat.Partrec.recursiveIn (O := ({} : Set (ℕ →. ℕ))) hf
+⟩
 
 namespace RecursiveIn
 
