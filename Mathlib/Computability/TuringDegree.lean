@@ -215,11 +215,10 @@ lemma join_recursiveIn_pair (f g : ℕ →. ℕ) : RecursiveIn ({f, g} : Set (�
     simpa [evenBranch] using RecursiveIn.comp hdbl (RecursiveIn.comp hfO hpayload)
   have hodd : RecursiveIn O oddBranch := by
     simpa [oddBranch] using RecursiveIn.comp hdbl1 (RecursiveIn.comp hgO hpayload)
-  have hc : Computable Nat.bodd := by
-    simpa using (Computable.nat_bodd : Computable Nat.bodd)
   have hcond :
       RecursiveIn O (fun n => cond (Nat.bodd n) (oddBranch n) (evenBranch n)) :=
-    RecursiveIn.cond (O := O) (c := Nat.bodd) (f := oddBranch) (g := evenBranch) hc hodd heven
+    RecursiveIn.cond (O := O) (c := Nat.bodd) (f := oddBranch) (g := evenBranch)
+      (Computable.nat_bodd) hodd heven
   refine (RecursiveIn.of_eq (O := O) hcond ?_)
   intro n
   by_cases hbn : Nat.bodd n
