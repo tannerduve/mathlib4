@@ -129,31 +129,8 @@ private instance : Preorder (ℕ →. ℕ) where
 instance TuringDegree.instPartialOrder : PartialOrder TuringDegree :=
   instPartialOrderAntisymmetrization
 
-open scoped Computability
-open Encodable
-
-/-! ### Turing join -/
-
-/--
-The **Turing join** of partial functions `f` and `g`, coding a disjoint union by parity.
-
-On even inputs we query `f`, on odd inputs we query `g`, with a simple even/odd output tagging.
--/
-def turingJoin (f g : ℕ →. ℕ) : ℕ →. ℕ :=
-  fun n =>
-    cond n.bodd ( (g n.div2).map (fun y => 2 * y + 1) ) ( (f n.div2).map (fun y => 2 * y) )
-@[inherit_doc]
-infix :50 " ⊕ " => turingJoin
-
-/-- Evaluation of the join on even inputs. -/
-@[simp] lemma turingJoin_even (f g : ℕ →. ℕ) (n : ℕ) :
-    (f ⊕ g) (2 * n) = (f n).map (fun y => 2 * y) := by
-  simp [turingJoin]
-
-/-- Evaluation of the join on odd inputs. -/
-@[simp] lemma turingJoin_odd (f g : ℕ →. ℕ) (n : ℕ) :
-    (f ⊕ g) (2 * n + 1) = (g n).map (fun y => 2 * y + 1) := by
-  simp [turingJoin, Nat.bodd_mul]
+open scoped Computability Partrec
+open Encodable Partrec
 
 /--
 `f` is Turing reducible to the join `f ⊕ g`.
@@ -179,7 +156,7 @@ lemma left_le_join (f g : ℕ →. ℕ) : f ≤ᵀ (f ⊕ g) := by
     have hcomp : (Nat.div2 ∘ fun y : ℕ => 2 * y) = (fun y => y) := by
       funext y
       simp [Function.comp, Nat.div2_bit0]
-    simpa [j, turingJoin, Part.bind_some_eq_map, Part.map_map, Function.comp, hcomp] using
+    simpa [j, join, Part.bind_some_eq_map, Part.map_map, Function.comp, hcomp] using
       (Part.map_id' (f := fun y : ℕ => y) (fun y => rfl) (f n))
   simpa [TuringReducible, j] using hf'
 
@@ -208,14 +185,14 @@ lemma right_le_join (f g : ℕ →. ℕ) : g ≤ᵀ (f ⊕ g) := by
     have hcomp : (Nat.div2 ∘ fun y : ℕ => 2 * y + 1) = (fun y => y) := by
       funext y
       simp [Function.comp]
-    simpa [j, turingJoin, Part.bind_some_eq_map, Part.map_map, Function.comp, hcomp] using
+    simpa [j, join, Part.bind_some_eq_map, Part.map_map, Function.comp, hcomp] using
       (Part.map_id' (f := fun y : ℕ => y) (fun y => rfl) (g n))
   simpa [TuringReducible, j] using hg'
 
 /--
 The join is recursive in the pair of oracles `{f, g}`.
 -/
-lemma turingJoin_recursiveIn_pair (f g : ℕ →. ℕ) : RecursiveIn ({f, g} : Set (ℕ →. ℕ)) (f ⊕ g) := by
+lemma join_recursiveIn_pair (f g : ℕ →. ℕ) : RecursiveIn ({f, g} : Set (ℕ →. ℕ)) (f ⊕ g) := by
   let O : Set (ℕ →. ℕ) := ({f, g} : Set (ℕ →. ℕ))
   have hpayload : RecursiveIn O (fun n : ℕ => (Nat.div2 n : ℕ)) := by
     refine RecursiveIn.of_primrec (O := O) ?_
@@ -246,15 +223,15 @@ lemma turingJoin_recursiveIn_pair (f g : ℕ →. ℕ) : RecursiveIn ({f, g} : S
   refine (RecursiveIn.of_eq (O := O) hcond ?_)
   intro n
   by_cases hbn : Nat.bodd n
-  · simp [turingJoin, evenBranch, oddBranch, hbn, Part.bind_some_eq_map]
-  · simp [turingJoin, evenBranch, oddBranch, hbn, Part.bind_some_eq_map]
+  · simp [join, evenBranch, oddBranch, hbn, Part.bind_some_eq_map]
+  · simp [join, evenBranch, oddBranch, hbn, Part.bind_some_eq_map]
 
 /--
 If `f` and `g` are both reducible to `h`, then their join is reducible to `h`.
 -/
 lemma join_le (f g h : ℕ →. ℕ) (hf : f ≤ᵀ h) (hg : g ≤ᵀ h) :
 (f ⊕ g) ≤ᵀ h := by
-  have hj : RecursiveIn ({f, g} : Set (ℕ →. ℕ)) (f ⊕ g) := turingJoin_recursiveIn_pair f g
+  have hj : RecursiveIn ({f, g} : Set (ℕ →. ℕ)) (f ⊕ g) := join_recursiveIn_pair f g
   have hO : ∀ k, k ∈ ({f, g} : Set (ℕ →. ℕ)) → RecursiveIn ({h} : Set (ℕ →. ℕ)) k := by
     intro k hk
     have hk' : k = f ∨ k = g := by

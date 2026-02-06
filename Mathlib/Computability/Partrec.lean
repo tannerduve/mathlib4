@@ -804,4 +804,29 @@ lemma eq01_rfind (v : Part ℕ) :
   · simpa using eq01_rfind_none
   · intro n; simpa using eq01_rfind_some n
 
+/--
+The join of partial functions `f` and `g`, coding a disjoint union by parity.
+-/
+def join (f g : ℕ →. ℕ) : ℕ →. ℕ :=
+  fun n =>
+    cond n.bodd ((g n.div2).map (fun y => 2 * y + 1)) ((f n.div2).map (fun y => 2 * y))
+@[inherit_doc]
+scoped infix:50 " ⊕ " => Partrec.join
+
+namespace Join
+
+variable {f g h : ℕ →. ℕ}
+
+@[simp]
+lemma even (f g : ℕ →. ℕ) (n : ℕ) :
+    Partrec.join f g (2 * n) = (f n).map (fun y => 2 * y) := by
+  simp [Partrec.join]
+
+@[simp]
+lemma odd (f g : ℕ →. ℕ) (n : ℕ) :
+    Partrec.join f g (2 * n + 1) = (g n).map (fun y => 2 * y + 1) := by
+  simp [Partrec.join, Nat.bodd_mul]
+
+end Join
+
 end Partrec
