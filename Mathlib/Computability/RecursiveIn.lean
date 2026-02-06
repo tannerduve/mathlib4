@@ -277,25 +277,8 @@ lemma recursiveIn_empty_iff_partrec : RecursiveIn ({} : Set (ℕ →. ℕ)) f �
 
 namespace RecursiveIn
 
-/-- Monotonicity of `RecursiveIn` with respect to oracle sets. -/
-theorem mono {O₁ O₂ : Set (ℕ →. ℕ)} (hsub : O₁ ⊆ O₂) {g : ℕ →. ℕ} :
-      RecursiveIn O₁ g → RecursiveIn O₂ g := by
-  intro hg
-  induction hg with
-  | zero | succ | left | right =>
-      constructor
-  | oracle g hg =>
-      exact RecursiveIn.oracle g (hsub hg)
-  | pair _ _ ih₁ ih₂ =>
-      exact RecursiveIn.pair ih₁ ih₂
-  | comp _ _ ih₁ ih₂ =>
-      exact RecursiveIn.comp ih₁ ih₂
-  | prec _ _ ih₁ ih₂ =>
-      exact RecursiveIn.prec ih₁ ih₂
-  | rfind _ ih =>
-      exact RecursiveIn.rfind ih
-
-/-- Substitute one oracle set for another, given realizers for each oracle. -/
+/-- If every element of O₁ is RecursiveIn O₂, then any function which is RecursiveIn O₁
+ is also RecursiveIn O₂ -/
 theorem subst {O O' : Set (ℕ →. ℕ)} {f : ℕ →. ℕ} (hf : RecursiveIn O f)
     (hO : ∀ g, g ∈ O → RecursiveIn O' g) : RecursiveIn O' f := by
   induction hf with
@@ -307,6 +290,10 @@ theorem subst {O O' : Set (ℕ →. ℕ)} {f : ℕ →. ℕ} (hf : RecursiveIn O
   | prec _ _ ihf ihg => exact .prec ihf ihg
   | rfind _ ihf => exact .rfind ihf
 
+/-- Monotonicity of `RecursiveIn` with respect to oracle sets. -/
+theorem mono {O₁ O₂ : Set (ℕ →. ℕ)} (hsub : O₁ ⊆ O₂) {g : ℕ →. ℕ} :
+      RecursiveIn O₁ g → RecursiveIn O₂ g :=
+      fun gRecInO => .subst (gRecInO) (fun g' g'In => .oracle g' (hsub (g'In)))
 /--
 `RecursiveIn O` is closed under conditionals with a computable guard and a constant fallback.
 
