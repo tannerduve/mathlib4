@@ -156,9 +156,8 @@ lemma Nat.Partrec.recursiveIn {O : Set (ℕ →. ℕ)} (pF : Nat.Partrec f) : Re
 /--
 If a function is computable, then it is computable in every oracle.
 -/
-theorem Computable.computableIn {f : α → β} [Primcodable α]
-[Primcodable β]
-(hf : Computable f) : ComputableIn O f :=
+theorem Computable.computableIn {f : α → β} [Primcodable α] [Primcodable β]
+    (hf : Computable f) : ComputableIn O f :=
   Nat.Partrec.recursiveIn (by simpa [Computable] using hf)
 
 namespace RecursiveIn
