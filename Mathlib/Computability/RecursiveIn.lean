@@ -46,7 +46,7 @@ and is closed under pairing, composition, primitive recursion, and μ-recursion.
 
 ## Tags
 
-computability, oracle, relative computability
+Computability, Oracle, Turing Degrees, Reducibility, Equivalence Relation
 -/
 
 @[expose] public section
