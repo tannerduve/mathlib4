@@ -23,12 +23,6 @@ The type of partial functions recursive in a set of oracles `O` is the smallest 
 the constant zero, the successor, left and right projections, each oracle `g ∈ O`,
 and is closed under pairing, composition, primitive recursion, and μ-recursion.
 
-## References
-
-* [Odifreddi1989] Odifreddi, Piergiorgio.
-  *Classical Recursion Theory: The Theory of Functions and Sets of Natural Numbers,
-  Vol. I*. Springer-Verlag, 1989.
-
 ## Tags
 
 Computability, Oracle, Turing Degrees, Reducibility, Equivalence Relation
