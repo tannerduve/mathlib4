@@ -343,16 +343,27 @@ theorem cond_core_rfind {c : ℕ → Bool} {f g : ℕ →. ℕ}
       RecursiveIn O cmp ∧
         (fun n => Nat.rfind (fun k => (fun m => m = 0) <$> cmp (Nat.pair n k))) =
           (fun n => cond (c n) (f n) (g n)) := by
-  have eq01_recursiveIn : RecursiveIn O Partrec.eq01 :=
-    Nat.Partrec.recursiveIn (O := O) Partrec.eq01_partrec
-  let eqF : ℕ →. ℕ := fun p =>
-    (Nat.pair <$>
-        ((fun n : ℕ => (Nat.unpair n).1) p >>= f) <*>
-        (fun n : ℕ => (Nat.unpair n).2) p) >>= Partrec.eq01
-  let eqG : ℕ →. ℕ := fun p =>
-    (Nat.pair <$>
-        ((fun n : ℕ => (Nat.unpair n).1) p >>= g) <*>
-        (fun n : ℕ => (Nat.unpair n).2) p) >>= Partrec.eq01
+  have kronecker_recursiveIn : RecursiveIn O Partrec.kronecker :=
+    Nat.Partrec.recursiveIn (O := O) Partrec.kronecker_partrec
+  have flip10_recursiveIn : RecursiveIn O (fun m => Part.some (Partrec.flip10 m)) :=
+    Nat.Partrec.recursiveIn (O := O) Partrec.flip10_partrec
+  let eq (h : ℕ →. ℕ) : ℕ →. ℕ := fun p =>
+    ((Nat.pair <$>
+          ((fun n : ℕ => (Nat.unpair n).1) p >>= h) <*>
+          (fun n : ℕ => (Nat.unpair n).2) p) >>= Partrec.kronecker) >>=
+      fun m => Part.some (Partrec.flip10 m)
+  have heq {h : ℕ →. ℕ} (hh : RecursiveIn O h) : RecursiveIn O (eq h) := by
+    have hbase : RecursiveIn O (fun p =>
+        (Nat.pair <$> ((fun n : ℕ => (Nat.unpair n).1) p >>= h) <*>
+          (fun n : ℕ => (Nat.unpair n).2) p) >>= Partrec.kronecker) :=
+      RecursiveIn.comp kronecker_recursiveIn
+        (RecursiveIn.pair (RecursiveIn.comp hh RecursiveIn.left) RecursiveIn.right)
+    have : RecursiveIn O (fun p =>
+        ((Nat.pair <$> ((fun n : ℕ => (Nat.unpair n).1) p >>= h) <*>
+            (fun n : ℕ => (Nat.unpair n).2) p) >>= Partrec.kronecker) >>=
+          fun m => Part.some (Partrec.flip10 m)) :=
+      RecursiveIn.comp flip10_recursiveIn hbase
+    simpa [eq] using this
   let c1 : ℕ → Bool := fun p => c (Nat.unpair p).1
   let c2 : ℕ → Bool := fun p => !c (Nat.unpair p).1
   have hc1 : Computable c1 := by
@@ -360,26 +371,12 @@ theorem cond_core_rfind {c : ℕ → Bool} {f g : ℕ →. ℕ}
   have hc2 : Computable c2 := by
     have hnot : Computable not := Primrec.not.to_comp
     simpa [c2] using hnot.comp hc1
-  have heqF : RecursiveIn O eqF := by
-    have : RecursiveIn O (fun p =>
-        (Nat.pair <$> ((fun n : ℕ => (Nat.unpair n).1) p >>= f) <*>
-          (fun n : ℕ => (Nat.unpair n).2) p) >>= Partrec.eq01) :=
-      RecursiveIn.comp eq01_recursiveIn
-        (RecursiveIn.pair (RecursiveIn.comp hf RecursiveIn.left) RecursiveIn.right)
-    simpa [eqF] using this
-  have heqG : RecursiveIn O eqG := by
-    have : RecursiveIn O (fun p =>
-        (Nat.pair <$> ((fun n : ℕ => (Nat.unpair n).1) p >>= g) <*>
-          (fun n : ℕ => (Nat.unpair n).2) p) >>= Partrec.eq01) :=
-      RecursiveIn.comp eq01_recursiveIn
-        (RecursiveIn.pair (RecursiveIn.comp hg RecursiveIn.left) RecursiveIn.right)
-    simpa [eqG] using this
-  let t1 : ℕ →. ℕ := fun p => bif c1 p then eqF p else Part.some 1
-  let t2 : ℕ →. ℕ := fun p => bif c2 p then eqG p else Part.some 1
+  let t1 : ℕ →. ℕ := fun p => bif c1 p then eq f p else Part.some 1
+  let t2 : ℕ →. ℕ := fun p => bif c2 p then eq g p else Part.some 1
   have ht1 : RecursiveIn O t1 := by
-    simpa [t1] using (cond_const (O := O) (c := c1) (f := eqF) hc1 heqF 1)
+    simpa [t1] using (cond_const (O := O) (c := c1) (f := eq f) hc1 (heq hf) 1)
   have ht2 : RecursiveIn O t2 := by
-    simpa [t2] using (cond_const (O := O) (c := c2) (f := eqG) hc2 heqG 1)
+    simpa [t2] using (cond_const (O := O) (c := c2) (f := eq g) hc2 (heq hg) 1)
   let mulPair : ℕ →. ℕ := (Nat.unpaired (fun a b : ℕ => a * b) : ℕ → ℕ)
   have hmul : RecursiveIn O mulPair := by
     have hpart : Nat.Partrec (mulPair : ℕ →. ℕ) := by
@@ -399,21 +396,23 @@ theorem cond_core_rfind {c : ℕ → Bool} {f g : ℕ →. ℕ}
   | true =>
       simp only [Part.map_eq_map, cond_true]
       have hpred : (fun k => Part.map φ (cmp (Nat.pair n k))) =
-          (fun k => Part.map φ ((Nat.pair <$> f n <*> Part.some k) >>= Partrec.eq01)) := by
+          fun k => Part.map φ (eq f (Nat.pair n k)) := by
         funext k
-        simp [cmp, t1, t2, c1, c2, eqF, eqG, mulPair, hn, Nat.unpair_pair, Nat.unpaired,
-          Seq.seq, Part.bind_assoc, Part.bind_some, Part.bind_some_right]
+        simp [cmp, t1, t2, c1, c2, eq, mulPair, hn, Nat.unpair_pair, Nat.unpaired,
+          Seq.seq, Part.bind_assoc, Part.bind_some]
       rw [hpred]
-      exact Partrec.eq01_rfind (v := f n)
+      simpa [eq, Nat.unpair_pair, Seq.seq, Part.map_eq_map, Part.bind_some_eq_map, φ] using
+        (Partrec.kronecker_rfind (v := f n))
   | false =>
       simp only [Part.map_eq_map, cond_false]
       have hpred : (fun k => Part.map φ (cmp (Nat.pair n k))) =
-          (fun k => Part.map φ ((Nat.pair <$> g n <*> Part.some k) >>= Partrec.eq01)) := by
+          fun k => Part.map φ (eq g (Nat.pair n k)) := by
         funext k
-        simp [cmp, t1, t2, c1, c2, eqF, eqG, mulPair, hn, Nat.unpair_pair, Nat.unpaired,
-          Seq.seq, Part.bind_assoc, Part.bind_some, Part.bind_some_right]
+        simp [cmp, t1, t2, c1, c2, eq, mulPair, hn, Nat.unpair_pair, Nat.unpaired,
+          Seq.seq, Part.bind_assoc, Part.bind_some]
       rw [hpred]
-      exact Partrec.eq01_rfind (v := g n)
+      simpa [eq, Nat.unpair_pair, Seq.seq, Part.map_eq_map, Part.bind_some_eq_map, φ] using
+        (Partrec.kronecker_rfind (v := g n))
 
 /--
 `RecursiveIn O` is closed under conditionals with a computable guard.
